@@ -16,13 +16,14 @@ float a = 1.0;          // The radius of the ring.
 // Calculate grid spacing.
 float h = 2*L / (static_cast<float>(N)-1);
 
+
 // Peforms a jacobi relaxation iteration.
 // Dirichlet boundary at r=0, with A=0.
 // Neumann boundary everywhere else.
 void jacobi_vector_relaxation_neumann(float** grid, float** source, float** aux) {
     float hsq = h*h;
 
-    // Copy.
+    // Copy the grid into the auxiliary grid `aux`
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
             aux[i][j] = grid[i][j];
@@ -30,7 +31,7 @@ void jacobi_vector_relaxation_neumann(float** grid, float** source, float** aux)
     }
 
 
-    // Dirichlet boundary at r=0 at zero.
+    // Dirichlet boundary at r=0.
     // That is, impose A=0 when r=0.
     for (int i = 0; i < N; ++i) {
         grid[i][0] = 0.0;
@@ -79,10 +80,14 @@ void jacobi_vector_relaxation_neumann(float** grid, float** source, float** aux)
 }
 
 
+// Peforms a Gauss-seidel relaxation iteration.
+// Dirichlet boundary at r=0, with A=0.
+// Neumann boundary everywhere else.
 void seidel_vector_relaxation_neumann(float** grid, float** source) {
     float hsq = h*h;
 
-    // Dirichlet boundary at r=0, that is, A = 0.
+    // Dirichlet boundary at r=0.
+    // That is, impose A=0 when r=0.
     for (int i = 0; i < N; ++i) {
         grid[i][0] = 0.0;
     }
@@ -129,6 +134,7 @@ void seidel_vector_relaxation_neumann(float** grid, float** source) {
     grid[N-1][N-1] = fac * (grid[N-2][N-1] + grid[N-1][N-2] + grid[N-2][N-1] + grid[N-1][N-2]);
 }
 
+
 // Populates the source grid with values.
 void current_ring_source(float** source) {
     float PI = 3.1415926535;
@@ -144,7 +150,7 @@ void current_ring_source(float** source) {
     float amplitude = 1.0;
     float sigma = 3*h;
     float mean_r = a;
-    float mean_z = 0.0;
+    float mean_z = height;
 
     float total_current = 0.0;
     for (int i = 0; i < N; ++i) {
@@ -160,16 +166,18 @@ void current_ring_source(float** source) {
             // Set the source.
             source[i][j] = J;
 
-            // Increment total current.
-            float volume = 2.0 * PI * r * h*h;
-            total_current += J * volume;
+            // Increment total current by numerical integration.
+            // dA = r dr dz
+            float area = r * h*h;
+            total_current += J * area;
         }
     }
 
 
     // Make sure the current is the one selected.
     // Rescale the source, such that, the integral of current density is
-    // the current chosen.
+    // the current chosen. This is equivalent of choosing an amplitude,
+    // that makes the total integral to be the current.
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
             source[i][j] *= current / total_current;
@@ -186,6 +194,7 @@ void initfile() {
     file.close();
 }
 
+// Saves the `grid` into the data.py, naming it as a variable called `var`.
 void plot(float** grid, const std::string& var) {
     std::ofstream file("data.py", std::ios::app);
     file << var << " = np.array([";
@@ -204,13 +213,20 @@ void plot(float** grid, const std::string& var) {
 }
 
 void calculate_current_ring(float** grid, float** source, float** aux) {
+    // Creates data.py.
     initfile();
+
+    // Populate the source grid.
     current_ring_source(source);
-    plot(grid, "boundary");
+
+    // Calculate the answer by relaxation.
     for (int i = 0; i < N*N; ++i) {
         // seidel_vector_relaxation_neumann(grid, source);
         jacobi_vector_relaxation_neumann(grid, source, aux);
     }
+
+    // Creates a variable called `grid` and stores it in data.py.
+    // The grid contains the answer.
     plot(grid, "grid");
 }
 
