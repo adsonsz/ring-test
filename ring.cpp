@@ -167,8 +167,8 @@ void current_ring_source(float** source) {
             source[i][j] = J;
 
             // Increment total current by numerical integration.
-            // dA = r dr dz
-            float area = r * h*h;
+            // I = int J(r,z) dr dz. Therefore, dA = dr dz = h^2
+            float area = h*h;
             total_current += J * area;
         }
     }
